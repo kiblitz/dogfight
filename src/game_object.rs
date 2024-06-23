@@ -9,7 +9,7 @@ pub trait Updatable {
     fn update(
         &mut self,
         event_handler: &EventHandler,
-        delta_time: &f32,
+        delta_time: f32,
     ) -> Result<(), Box<dyn Error>>;
 }
 
