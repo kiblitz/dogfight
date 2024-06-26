@@ -8,6 +8,7 @@ use sdl2::video::WindowContext;
 pub struct TextureHandler<'a> {
     stars_background: Texture<'a>,
     player: Texture<'a>,
+    laser: Texture<'a>,
 }
 
 impl<'a> TextureHandler<'a> {
@@ -18,9 +19,11 @@ impl<'a> TextureHandler<'a> {
             texture_creator.load_texture_bytes(include_bytes!("assets/stars.png"))?;
         stars_background.set_blend_mode(BlendMode::Blend);
         let player = texture_creator.load_texture_bytes(include_bytes!("assets/player.png"))?;
+        let laser = texture_creator.load_texture_bytes(include_bytes!("assets/laser.png"))?;
         Ok(Self {
             stars_background,
             player,
+            laser,
         })
     }
 }

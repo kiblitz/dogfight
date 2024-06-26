@@ -2,20 +2,22 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 
 #[derive(derive_getters::Getters)]
-pub struct EventHandler {
+pub struct InputHandler {
     up: bool,
     down: bool,
     left: bool,
     right: bool,
+    shoot: bool,
 }
 
-impl EventHandler {
+impl InputHandler {
     pub fn new() -> Self {
         Self {
             up: false,
             down: false,
             left: false,
             right: false,
+            shoot: false,
         }
     }
 
@@ -31,6 +33,7 @@ impl EventHandler {
                     Keycode::S => self.down = true,
                     Keycode::A => self.left = true,
                     Keycode::D => self.right = true,
+                    Keycode::Space => self.shoot = true,
                     _ => (),
                 };
                 true
@@ -44,6 +47,7 @@ impl EventHandler {
                     Keycode::S => self.down = false,
                     Keycode::A => self.left = false,
                     Keycode::D => self.right = false,
+                    Keycode::Space => self.shoot = false,
                     _ => (),
                 };
                 true
