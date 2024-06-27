@@ -1,6 +1,6 @@
 use crate::basic_laser::BasicLaser;
 use crate::game_event::GameEvent;
-use crate::game_object::{Drawable, Updatable};
+use crate::game_object::{Bounds, Drawable, GameTexture, Updatable};
 use crate::input_handler::InputHandler;
 use crate::texture_handler::TextureHandler;
 use crate::timer_object::TimerObject;
@@ -12,46 +12,58 @@ use std::time::Duration;
 
 use glam::Vec2;
 
-use sdl2::render::{Canvas, Texture};
+use sdl2::render::Canvas;
 use sdl2::video::Window;
 
 #[derive(derive_getters::Getters)]
 pub struct Player<'player, 'texture_handler> {
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
+    bounds: Bounds,
+    physics: Physics,
+    rotation_physics: RotationPhysics,
+    game_texture: GameTexture<'player, 'texture_handler>,
+    fire_timer: TimerObject,
+    fire_ready: bool,
+}
+
+struct Physics {
     speed: Vec2,
     acceleration: f32,
     drag_constant: f32,
     break_drag_constant: f32,
-    rotation: f32,
-    rotation_speed: f32,
-    rotation_acceleration: f32,
-    rotation_drag_constant: f32,
-    texture: &'player Texture<'texture_handler>,
-    texture_offset_rotation: f32,
-    fire_timer: TimerObject,
-    fire_ready: bool,
+}
+
+struct RotationPhysics {
+    value: f32,
+    speed: f32,
+    acceleration: f32,
+    drag_constant: f32,
 }
 
 impl<'texture_handler> Player<'_, 'texture_handler> {
     pub fn new(texture_handler: &'texture_handler TextureHandler) -> Self {
         Self {
-            x: 0.,
-            y: 0.,
-            width: 100.,
-            height: 100.,
-            speed: Vec2::ZERO,
-            acceleration: 420.,
-            drag_constant: 0.6,
-            break_drag_constant: 0.3,
-            rotation: 0.,
-            rotation_speed: 0.,
-            rotation_acceleration: 12.,
-            rotation_drag_constant: 0.15,
-            texture: texture_handler.player(),
-            texture_offset_rotation: PI / 2.,
+            bounds: Bounds {
+                x: 0.,
+                y: 0.,
+                width: 100.,
+                height: 100.,
+            },
+            physics: Physics {
+                speed: Vec2::ZERO,
+                acceleration: 420.,
+                drag_constant: 0.6,
+                break_drag_constant: 0.3,
+            },
+            rotation_physics: RotationPhysics {
+                value: 0.,
+                speed: 0.,
+                acceleration: 12.,
+                drag_constant: 0.15,
+            },
+            game_texture: GameTexture {
+                texture: texture_handler.player(),
+                rotation_offset: PI / 2.,
+            },
             fire_timer: TimerObject::new(Duration::from_millis(200).as_secs_f32()),
             fire_ready: true,
         }
@@ -77,26 +89,39 @@ impl<'texture_handler> Updatable<'texture_handler> for Player<'_, 'texture_handl
 
         // movement
         if *input_handler.up() && !input_handler.down() {
-            self.speed += Vec2::from_angle(self.rotation) * self.acceleration * delta_time;
+            self.physics.speed += Vec2::from_angle(self.rotation_physics.value)
+                * self.physics.acceleration
+                * delta_time;
         } else if *input_handler.down() && !input_handler.up() {
-            self.speed = self.speed.normalize_or_zero()
-                * util::drag(self.speed.length(), self.break_drag_constant, delta_time);
+            self.physics.speed = self.physics.speed.normalize_or_zero()
+                * util::drag(
+                    self.physics.speed.length(),
+                    self.physics.break_drag_constant,
+                    delta_time,
+                );
         }
-        self.speed = self.speed.normalize_or_zero()
-            * util::drag(self.speed.length(), self.drag_constant, delta_time);
+        self.physics.speed = self.physics.speed.normalize_or_zero()
+            * util::drag(
+                self.physics.speed.length(),
+                self.physics.drag_constant,
+                delta_time,
+            );
 
         if *input_handler.left() {
-            self.rotation_speed -= self.rotation_acceleration * delta_time;
+            self.rotation_physics.speed -= self.rotation_physics.acceleration * delta_time;
         }
         if *input_handler.right() {
-            self.rotation_speed += self.rotation_acceleration * delta_time;
+            self.rotation_physics.speed += self.rotation_physics.acceleration * delta_time;
         }
-        self.rotation_speed =
-            util::drag(self.rotation_speed, self.rotation_drag_constant, delta_time);
+        self.rotation_physics.speed = util::drag(
+            self.rotation_physics.speed,
+            self.rotation_physics.drag_constant,
+            delta_time,
+        );
 
-        self.x += self.speed.x * delta_time;
-        self.y += self.speed.y * delta_time;
-        self.rotation += self.rotation_speed * delta_time;
+        self.bounds.x += self.physics.speed.x * delta_time;
+        self.bounds.y += self.physics.speed.y * delta_time;
+        self.rotation_physics.value += self.rotation_physics.speed * delta_time;
 
         // projectiles
         if *input_handler.shoot() && self.fire_ready {
@@ -105,9 +130,9 @@ impl<'texture_handler> Updatable<'texture_handler> for Player<'_, 'texture_handl
 
             Ok(GameEvent::PlayerShoot(Box::new(BasicLaser::new(
                 texture_handler,
-                self.x,
-                self.y,
-                self.rotation,
+                self.bounds.x,
+                self.bounds.y,
+                self.rotation_physics.value,
             ))))
         } else {
             Ok(GameEvent::None)
@@ -118,10 +143,15 @@ impl<'texture_handler> Updatable<'texture_handler> for Player<'_, 'texture_handl
 impl<'texture_handler> Drawable<'texture_handler> for Player<'_, 'texture_handler> {
     fn draw(&self, canvas: &mut Canvas<Window>) -> Result<(), Box<dyn Error>> {
         canvas.copy_ex(
-            self.texture,
+            self.game_texture.texture,
             None,
-            Some(util::rect(self.x, self.y, self.width, self.height)),
-            (self.rotation + self.texture_offset_rotation).to_degrees() as f64,
+            Some(util::rect(
+                self.bounds.x,
+                self.bounds.y,
+                self.bounds.width,
+                self.bounds.height,
+            )),
+            (self.rotation_physics.value + self.game_texture.rotation_offset).to_degrees() as f64,
             None,
             false,
             false,
