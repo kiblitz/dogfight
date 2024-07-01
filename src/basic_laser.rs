@@ -1,12 +1,11 @@
+use crate::camera::Camera;
 use crate::game_event::GameEvent;
 use crate::game_object::{Bounds, Drawable, GameTexture, Updatable};
+use crate::input_handler::InputHandler;
 use crate::texture_handler::TextureHandler;
 use crate::util;
 
 use std::error::Error;
-
-use sdl2::render::Canvas;
-use sdl2::video::Window;
 
 pub struct BasicLaser<'basic_laser, 'texture_handler> {
     bounds: Bounds,
@@ -42,8 +41,9 @@ impl<'texture_handler> BasicLaser<'_, 'texture_handler> {
 impl<'texture_handler> Updatable<'texture_handler> for BasicLaser<'_, 'texture_handler> {
     fn update(
         &mut self,
+        _: &mut Camera,
         _: &'texture_handler TextureHandler,
-        _: &crate::input_handler::InputHandler,
+        _: &InputHandler,
         delta_time: f32,
     ) -> Result<GameEvent<'texture_handler>, Box<dyn std::error::Error>> {
         let speed = self.speed * delta_time;
@@ -54,8 +54,8 @@ impl<'texture_handler> Updatable<'texture_handler> for BasicLaser<'_, 'texture_h
 }
 
 impl<'texture_handler> Drawable<'texture_handler> for BasicLaser<'_, 'texture_handler> {
-    fn draw(&self, canvas: &mut Canvas<Window>) -> Result<(), Box<dyn Error>> {
-        canvas.copy_ex(
+    fn draw(&self, camera: &mut Camera) -> Result<(), Box<dyn Error>> {
+        camera.canvas_copy_ex(
             self.game_texture.texture,
             None,
             Some(util::rect(
@@ -65,9 +65,6 @@ impl<'texture_handler> Drawable<'texture_handler> for BasicLaser<'_, 'texture_ha
                 self.bounds.height,
             )),
             (self.rotation + self.game_texture.rotation_offset).to_degrees() as f64,
-            None,
-            false,
-            false,
         )?;
         Ok(())
     }

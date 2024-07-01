@@ -1,3 +1,4 @@
+use crate::camera::Camera;
 use crate::game_event::GameEvent;
 use crate::game_object::Updatable;
 use crate::texture_handler::TextureHandler;
@@ -33,6 +34,7 @@ impl TimerObject {
 impl<'texture_handler> Updatable<'texture_handler> for TimerObject {
     fn update(
         &mut self,
+        _: &mut Camera,
         _: &'texture_handler TextureHandler,
         _: &crate::input_handler::InputHandler,
         delta_time: f32,

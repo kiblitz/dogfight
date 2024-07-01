@@ -1,6 +1,7 @@
 extern crate sdl2;
 
 mod basic_laser;
+mod camera;
 mod dogfight;
 mod game;
 mod game_event;

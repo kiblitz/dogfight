@@ -1,4 +1,5 @@
 use crate::basic_laser::BasicLaser;
+use crate::camera::Camera;
 use crate::game_event::GameEvent;
 use crate::game_object::{Bounds, Drawable, GameTexture, Updatable};
 use crate::input_handler::InputHandler;
@@ -11,9 +12,6 @@ use std::f32::consts::PI;
 use std::time::Duration;
 
 use glam::Vec2;
-
-use sdl2::render::Canvas;
-use sdl2::video::Window;
 
 #[derive(derive_getters::Getters)]
 pub struct Player<'player, 'texture_handler> {
@@ -73,13 +71,14 @@ impl<'texture_handler> Player<'_, 'texture_handler> {
 impl<'texture_handler> Updatable<'texture_handler> for Player<'_, 'texture_handler> {
     fn update(
         &mut self,
+        camera: &mut Camera,
         texture_handler: &'texture_handler TextureHandler,
         input_handler: &InputHandler,
         delta_time: f32,
     ) -> Result<GameEvent<'texture_handler>, Box<dyn Error>> {
         match self
             .fire_timer
-            .update(texture_handler, input_handler, delta_time)?
+            .update(camera, texture_handler, input_handler, delta_time)?
         {
             GameEvent::TimerFire => {
                 self.fire_ready = true;
@@ -123,6 +122,8 @@ impl<'texture_handler> Updatable<'texture_handler> for Player<'_, 'texture_handl
         self.bounds.y += self.physics.speed.y * delta_time;
         self.rotation_physics.value += self.rotation_physics.speed * delta_time;
 
+        camera.set_target(self.bounds.x - 500., self.bounds.y - 300., 1000., 600.);
+
         // projectiles
         if *input_handler.shoot() && self.fire_ready {
             self.fire_ready = false;
@@ -141,8 +142,8 @@ impl<'texture_handler> Updatable<'texture_handler> for Player<'_, 'texture_handl
 }
 
 impl<'texture_handler> Drawable<'texture_handler> for Player<'_, 'texture_handler> {
-    fn draw(&self, canvas: &mut Canvas<Window>) -> Result<(), Box<dyn Error>> {
-        canvas.copy_ex(
+    fn draw(&self, camera: &mut Camera) -> Result<(), Box<dyn Error>> {
+        camera.canvas_copy_ex(
             self.game_texture.texture,
             None,
             Some(util::rect(
@@ -152,9 +153,6 @@ impl<'texture_handler> Drawable<'texture_handler> for Player<'_, 'texture_handle
                 self.bounds.height,
             )),
             (self.rotation_physics.value + self.game_texture.rotation_offset).to_degrees() as f64,
-            None,
-            false,
-            false,
         )?;
         Ok(())
     }

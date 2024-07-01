@@ -1,3 +1,4 @@
+use crate::camera::Camera;
 use crate::game_event::GameEvent;
 use crate::game_object::{Drawable, Updatable};
 use crate::input_handler::InputHandler;
@@ -14,15 +15,17 @@ use sdl2::video::Window;
 
 pub struct Game<'game, 'texture_handler> {
     frame: Wrapping<u8>,
+    camera: Camera,
     player: Player<'game, 'texture_handler>,
     background: &'game Texture<'texture_handler>,
     entities: LinkedList<Box<dyn Drawable<'texture_handler> + 'texture_handler>>,
 }
 
 impl<'texture_handler> Game<'_, 'texture_handler> {
-    pub fn new(texture_handler: &'texture_handler TextureHandler) -> Self {
+    pub fn new(canvas: Canvas<Window>, texture_handler: &'texture_handler TextureHandler) -> Self {
         Self {
             frame: Wrapping(0u8),
+            camera: Camera::new(canvas, -100., -100., 600., 400.),
             player: Player::new(texture_handler),
             background: texture_handler.stars_background(),
             entities: LinkedList::new(),
@@ -32,45 +35,46 @@ impl<'texture_handler> Game<'_, 'texture_handler> {
     pub fn frame(&self) -> u8 {
         self.frame.0
     }
-}
 
-impl<'texture_handler> Updatable<'texture_handler> for Game<'_, 'texture_handler> {
-    fn update(
+    pub fn update(
         &mut self,
         texture_handler: &'texture_handler TextureHandler,
         input_handler: &InputHandler,
         delta_time: f32,
     ) -> Result<GameEvent<'texture_handler>, Box<dyn Error>> {
         self.frame += Wrapping(1u8);
-        match self
-            .player
-            .update(texture_handler, &input_handler, delta_time)?
-        {
+        match self.player.update(
+            &mut self.camera,
+            texture_handler,
+            &input_handler,
+            delta_time,
+        )? {
             GameEvent::PlayerShoot(basic_laser) => self.entities.push_back(basic_laser),
             _ => (),
         }
         for entity in self.entities.iter_mut() {
-            entity.update(texture_handler, input_handler, delta_time)?;
+            entity.update(&mut self.camera, texture_handler, input_handler, delta_time)?;
         }
+        self.camera.update(delta_time);
         Ok(GameEvent::None)
     }
-}
 
-impl<'texture_handler> Drawable<'texture_handler> for Game<'_, 'texture_handler> {
-    fn draw(&self, canvas: &mut Canvas<Window>) -> Result<(), Box<dyn Error>> {
+    pub fn draw(&mut self) -> Result<(), Box<dyn Error>> {
         let i = self.frame();
-        canvas.set_draw_color(Color::RGB(
+        self.camera.set_canvas_draw_color(Color::RGB(
             if i < 128 { i } else { 255 - i },
             64,
             128 - if i < 128 { i } else { 255 - i },
         ));
-        canvas.clear();
-        canvas.copy_ex(self.background, None, None, 0., None, false, false)?;
+        self.camera.canvas_clear();
+        self.camera
+            .canvas_copy_ex(self.background, None, None, 0.)?;
 
         for entity in self.entities.iter() {
-            entity.draw(canvas)?;
+            entity.draw(&mut self.camera)?;
         }
-        self.player.draw(canvas)?;
+        self.player.draw(&mut self.camera)?;
+        self.camera.canvas_present();
         Ok(())
     }
 }

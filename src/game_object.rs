@@ -1,12 +1,13 @@
+use crate::camera::Camera;
 use crate::game_event::GameEvent;
 use crate::input_handler::InputHandler;
 use crate::texture_handler::TextureHandler;
 
 use std::error::Error;
 
-use sdl2::render::{Canvas, Texture};
-use sdl2::video::Window;
+use sdl2::render::Texture;
 
+#[derive(Clone, Copy)]
 pub struct Bounds {
     pub x: f32,
     pub y: f32,
@@ -22,6 +23,7 @@ pub struct GameTexture<'owner, 'texture_handler> {
 pub trait Updatable<'texture_handler> {
     fn update(
         &mut self,
+        camera: &mut Camera,
         texture_handler: &'texture_handler TextureHandler,
         input_handler: &InputHandler,
         delta_time: f32,
@@ -29,5 +31,5 @@ pub trait Updatable<'texture_handler> {
 }
 
 pub trait Drawable<'texture_handler>: Updatable<'texture_handler> {
-    fn draw(&self, canvas: &mut Canvas<Window>) -> Result<(), Box<dyn Error>>;
+    fn draw(&self, camera: &mut Camera) -> Result<(), Box<dyn Error>>;
 }

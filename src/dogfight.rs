@@ -1,5 +1,4 @@
 use crate::game::Game;
-use crate::game_object::{Drawable, Updatable};
 use crate::input_handler::InputHandler;
 use crate::texture_handler::TextureHandler;
 use crate::util::REFRESH_EVERY;
@@ -19,14 +18,13 @@ pub fn run_game() -> Result<(), Box<dyn Error>> {
         .unwrap();
 
     let mut last_update_time = SystemTime::now();
-    let mut canvas = window.into_canvas().build().unwrap();
-    canvas.default_pixel_format();
+    let canvas = window.into_canvas().build().unwrap();
 
     let texture_creator = canvas.texture_creator();
     texture_creator.default_pixel_format();
     let texture_handler = TextureHandler::new(&texture_creator)?;
 
-    let mut game = Game::new(&texture_handler);
+    let mut game = Game::new(canvas, &texture_handler);
 
     let mut input_handler = InputHandler::new();
     let mut input_event_pump = sdl_context.event_pump().unwrap();
@@ -42,9 +40,8 @@ pub fn run_game() -> Result<(), Box<dyn Error>> {
             .map_err(|e| e.to_string())
             .map(|duration| duration.as_secs_f32())?;
         game.update(&texture_handler, &input_handler, delta_time)?;
-        game.draw(&mut canvas)?;
+        game.draw()?;
         last_update_time = SystemTime::now();
-        canvas.present();
 
         std::thread::sleep(REFRESH_EVERY);
     }
